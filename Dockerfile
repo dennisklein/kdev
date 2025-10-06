@@ -110,6 +110,12 @@ COPY --from=kdev-linux-amd64-build /kdev-linux-amd64 /kdev-linux-amd64
 FROM scratch AS lint-golangci-lint-fmt
 COPY --from=lint-golangci-lint-fmt-run /src .
 
+# runs e2e-tests
+FROM base AS e2e-tests
+WORKDIR /src
+COPY ./test ./test
+RUN --mount=type=cache,target=/root/.cache/go-build,id=kdev/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp go test -v -tags=e2e ./test/e2e/...
+
 FROM scratch AS unit-tests
 COPY --from=unit-tests-run /src/coverage.txt /coverage-unit-tests.txt
 

@@ -198,10 +198,7 @@ unit-tests-race:  ## Performs unit tests with race detection enabled.
 
 .PHONY: e2e-tests
 e2e-tests:  ## Performs end-to-end tests
-	@docker run --rm -v $(PWD):/src:Z -w /src golang:$(GO_VERSION) \
-		bash -c "export GOTOOLCHAIN=local; \
-		export GO111MODULE=on; export GOPROXY=https://proxy.golang.org; \
-		cd test/e2e && go test -v -tags=e2e ./..."
+	@$(MAKE) target-$@
 
 .PHONY: test
 test: unit-tests e2e-tests  ## Runs all tests (unit + e2e)
@@ -237,5 +234,5 @@ reuse:  ## Check REUSE compliance.
 .PHONY: help
 help:  ## This help menu.
 	@echo "$$HELP_MENU_HEADER"
-	@grep -E '^[a-zA-Z%_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9%_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
