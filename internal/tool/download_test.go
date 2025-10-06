@@ -77,7 +77,7 @@ func TestFetchChecksum(t *testing.T) {
 	})
 }
 
-func TestToolDownload(t *testing.T) {
+func TestToolDownload(t *testing.T) { //nolint:maintidx // test function complexity is acceptable
 	t.Run("downloads and verifies file successfully", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		content := []byte("fake binary content")
@@ -336,6 +336,195 @@ func TestToolDownload(t *testing.T) {
 		checksum, err := fetchChecksum(context.Background(), checksumServer.URL)
 		require.NoError(t, err)
 		assert.Equal(t, "", checksum) // Empty string after trimming and fields split
+	})
+
+	t.Run("handles file rename error", func(t *testing.T) { //nolint:dupl // similar test setup is intentional
+		fs := &errorFs{
+			Fs:        afero.NewMemMapFs(),
+			renameErr: fmt.Errorf("rename failed"),
+		}
+
+		content := []byte("binary content")
+		checksum := fmt.Sprintf("%x", sha256.Sum256(content))
+
+		checksumServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(checksum)) //nolint:errcheck // test helper
+		}))
+		defer checksumServer.Close()
+
+		binaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(content) //nolint:errcheck // test helper
+		}))
+		defer binaryServer.Close()
+
+		tool := &Tool{
+			Name: "testtool",
+			Fs:   fs,
+			VersionFunc: func(ctx context.Context) (string, error) {
+				return testVersion, nil
+			},
+			DownloadURL: func(version, goos, goarch string) string {
+				return binaryServer.URL
+			},
+			ChecksumURL: func(version, goos, goarch string) string {
+				return checksumServer.URL
+			},
+		}
+
+		destPath := testToolPath
+		err := tool.download(context.Background(), destPath, testVersion)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rename failed")
+	})
+
+	t.Run("handles MkdirAll error", func(t *testing.T) {
+		fs := &errorFs{
+			Fs:          afero.NewMemMapFs(),
+			mkdirAllErr: fmt.Errorf("mkdir failed"),
+		}
+
+		checksumServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("checksum")) //nolint:errcheck // test helper
+		}))
+		defer checksumServer.Close()
+
+		tool := &Tool{
+			Name: "testtool",
+			Fs:   fs,
+			VersionFunc: func(ctx context.Context) (string, error) {
+				return testVersion, nil
+			},
+			DownloadURL: func(version, goos, goarch string) string {
+				return "http://example.com/binary"
+			},
+			ChecksumURL: func(version, goos, goarch string) string {
+				return checksumServer.URL
+			},
+		}
+
+		destPath := testToolPath
+		err := tool.download(context.Background(), destPath, testVersion)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create directory")
+	})
+
+	t.Run("handles file create error", func(t *testing.T) { //nolint:dupl // similar test setup is intentional
+		fs := &errorFs{
+			Fs:        afero.NewMemMapFs(),
+			createErr: fmt.Errorf("create failed"),
+		}
+
+		content := []byte("binary")
+		checksum := fmt.Sprintf("%x", sha256.Sum256(content))
+
+		checksumServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(checksum)) //nolint:errcheck // test helper
+		}))
+		defer checksumServer.Close()
+
+		binaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(content) //nolint:errcheck // test helper
+		}))
+		defer binaryServer.Close()
+
+		tool := &Tool{
+			Name: "testtool",
+			Fs:   fs,
+			VersionFunc: func(ctx context.Context) (string, error) {
+				return testVersion, nil
+			},
+			DownloadURL: func(version, goos, goarch string) string {
+				return binaryServer.URL
+			},
+			ChecksumURL: func(version, goos, goarch string) string {
+				return checksumServer.URL
+			},
+		}
+
+		destPath := testToolPath
+		err := tool.download(context.Background(), destPath, testVersion)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "create failed")
+	})
+
+	t.Run("handles io.Copy error", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+
+		content := []byte("binary content")
+		checksum := fmt.Sprintf("%x", sha256.Sum256(content))
+
+		checksumServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(checksum)) //nolint:errcheck // test helper
+		}))
+		defer checksumServer.Close()
+
+		// Server that sends partial content then fails
+		binaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("partial")) //nolint:errcheck // test helper
+			// Abruptly close connection
+			panic(http.ErrAbortHandler)
+		}))
+		defer binaryServer.Close()
+
+		tool := &Tool{
+			Name: "testtool",
+			Fs:   fs,
+			VersionFunc: func(ctx context.Context) (string, error) {
+				return testVersion, nil
+			},
+			DownloadURL: func(version, goos, goarch string) string {
+				return binaryServer.URL
+			},
+			ChecksumURL: func(version, goos, goarch string) string {
+				return checksumServer.URL
+			},
+		}
+
+		destPath := testToolPath
+		err := tool.download(context.Background(), destPath, testVersion)
+		require.Error(t, err)
+
+		// Verify temp file was cleaned up
+		tmpPath := destPath + ".tmp"
+		exists, err := afero.Exists(fs, tmpPath)
+		require.NoError(t, err)
+		assert.False(t, exists)
+	})
+
+	t.Run("handles NewRequest error with invalid URL", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+
+		checksumServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("checksum")) //nolint:errcheck // test helper
+		}))
+		defer checksumServer.Close()
+
+		tool := &Tool{
+			Name: "testtool",
+			Fs:   fs,
+			VersionFunc: func(ctx context.Context) (string, error) {
+				return testVersion, nil
+			},
+			DownloadURL: func(version, goos, goarch string) string {
+				// Return invalid URL to trigger NewRequest error
+				return "ht!tp://invalid url with spaces"
+			},
+			ChecksumURL: func(version, goos, goarch string) string {
+				return checksumServer.URL
+			},
+		}
+
+		destPath := testToolPath
+		err := tool.download(context.Background(), destPath, testVersion)
+		require.Error(t, err)
 	})
 }
 

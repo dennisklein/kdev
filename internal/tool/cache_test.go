@@ -133,6 +133,53 @@ func TestCachedVersions(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, cached)
 	})
+
+	t.Run("skips version when Stat fails on second call", func(t *testing.T) {
+		baseFs := afero.NewMemMapFs()
+		home := testHome
+
+		t.Setenv("HOME", home)
+
+		dataDir := filepath.Join(home, ".kdev")
+		toolDir := filepath.Join(dataDir, "kdev", "kubectl")
+
+		// Create multiple cached versions
+		v1Path := filepath.Join(toolDir, "v1.28.0", "kubectl")
+		v2Path := filepath.Join(toolDir, "v1.29.0", "kubectl")
+		v3Path := filepath.Join(toolDir, "v1.30.0", "kubectl")
+
+		for _, p := range []string{v1Path, v2Path, v3Path} {
+			err := baseFs.MkdirAll(filepath.Dir(p), 0o755)
+			require.NoError(t, err)
+
+			err = afero.WriteFile(baseFs, p, []byte("binary"), 0o755)
+			require.NoError(t, err)
+		}
+
+		// Wrap with errorFs that fails Stat on second call to v1.29.0
+		// This simulates a race condition where the file exists when
+		// exists() checks but fails when getting size info
+		fs := &errorFs{
+			Fs:               baseFs,
+			statErrPath:      v2Path,
+			statErr:          fmt.Errorf("permission denied"),
+			statErrAfterCall: 1, // Fail on second call
+		}
+
+		tool := &Tool{
+			Name: "kubectl",
+			Fs:   fs,
+		}
+
+		cached, err := tool.CachedVersions()
+		require.NoError(t, err)
+
+		// Should only have 2 versions (v1.30.0 and v1.28.0)
+		// v1.29.0 should be skipped due to Stat error on second call
+		require.Len(t, cached, 2)
+		assert.Equal(t, "v1.30.0", cached[0].Version)
+		assert.Equal(t, "v1.28.0", cached[1].Version)
+	})
 }
 
 func TestLatestVersion(t *testing.T) {
@@ -313,7 +360,7 @@ func TestDownload(t *testing.T) {
 			Name: "testtool",
 			Fs:   fs,
 			VersionFunc: func(ctx context.Context) (string, error) {
-				return "v1.0.0", nil
+				return "v1.0.0", nil //nolint:goconst // test version string
 			},
 		}
 
@@ -335,7 +382,7 @@ func TestDownload(t *testing.T) {
 			Name: "testtool",
 			Fs:   fs,
 			VersionFunc: func(ctx context.Context) (string, error) {
-				return "v1.0.0", nil
+				return "v1.0.0", nil //nolint:goconst // test version string
 			},
 		}
 
@@ -486,7 +533,7 @@ func TestDownloadErrors(t *testing.T) {
 			Name: "testtool",
 			Fs:   fs,
 			VersionFunc: func(ctx context.Context) (string, error) {
-				return "v1.0.0", nil
+				return "v1.0.0", nil //nolint:goconst // test version string
 			},
 			DownloadURL: func(version, goos, goarch string) string {
 				return binaryServer.URL
@@ -500,14 +547,97 @@ func TestDownloadErrors(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to make executable")
 	})
+
+	t.Run("handles progress write error on download start", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		home := testHome
+		t.Setenv("HOME", home)
+
+		// Create a writer that always errors
+		errWriter := &errorProgressWriter{err: fmt.Errorf("write error")}
+
+		tool := &Tool{
+			Name:           "testtool",
+			Fs:             fs,
+			ProgressWriter: errWriter,
+			VersionFunc: func(ctx context.Context) (string, error) {
+				return "v1.0.0", nil //nolint:goconst // test version string
+			},
+			DownloadURL: func(version, goos, goarch string) string {
+				return "http://example.com/binary"
+			},
+			ChecksumURL: func(version, goos, goarch string) string {
+				return "http://example.com/checksum"
+			},
+		}
+
+		err := tool.Download(context.Background())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to write progress")
+	})
+
+	t.Run("handles progress write error on download success", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		home := testHome
+		t.Setenv("HOME", home)
+
+		content := []byte("binary")
+		checksum := fmt.Sprintf("%x", sha256.Sum256(content))
+
+		checksumServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(checksum)) //nolint:errcheck // test helper
+		}))
+		defer checksumServer.Close()
+
+		binaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(content) //nolint:errcheck // test helper
+		}))
+		defer binaryServer.Close()
+
+		// Writer that fails on second write
+		errWriter := &errorProgressWriter{
+			failAfter: 1,
+			err:       fmt.Errorf("write error"),
+		}
+
+		tool := &Tool{
+			Name:           "testtool",
+			Fs:             fs,
+			ProgressWriter: errWriter,
+			VersionFunc: func(ctx context.Context) (string, error) {
+				return "v1.0.0", nil //nolint:goconst // test version string
+			},
+			DownloadURL: func(version, goos, goarch string) string {
+				return binaryServer.URL
+			},
+			ChecksumURL: func(version, goos, goarch string) string {
+				return checksumServer.URL
+			},
+		}
+
+		err := tool.Download(context.Background())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to write progress")
+	})
 }
 
 // errorFs is a test filesystem that can return errors for specific operations.
+//
+//nolint:govet // fieldalignment not critical for test helper
 type errorFs struct {
 	afero.Fs
-	removeAllErr error
-	chmodErr     error
-	readDirErr   error
+	removeAllErr     error
+	chmodErr         error
+	readDirErr       error
+	mkdirAllErr      error
+	createErr        error
+	renameErr        error
+	statErrPath      string         // Path that should trigger statErr
+	statErr          error          // Error to return for statErrPath
+	statErrAfterCall int            // Only fail after this many calls to Stat
+	statCallCount    map[string]int // Track call count per path
 }
 
 func (e *errorFs) RemoveAll(path string) error {
@@ -535,6 +665,49 @@ func (e *errorFs) Open(name string) (afero.File, error) {
 	return &errorFile{File: f, readDirErr: e.readDirErr}, nil
 }
 
+func (e *errorFs) MkdirAll(path string, perm os.FileMode) error {
+	if e.mkdirAllErr != nil {
+		return e.mkdirAllErr
+	}
+
+	return e.Fs.MkdirAll(path, perm)
+}
+
+func (e *errorFs) Create(name string) (afero.File, error) {
+	if e.createErr != nil {
+		return nil, e.createErr
+	}
+
+	return e.Fs.Create(name)
+}
+
+func (e *errorFs) Rename(oldname, newname string) error {
+	if e.renameErr != nil {
+		return e.renameErr
+	}
+
+	return e.Fs.Rename(oldname, newname)
+}
+
+func (e *errorFs) Stat(name string) (os.FileInfo, error) {
+	if e.statErr != nil && e.statErrPath != "" && name == e.statErrPath {
+		// Initialize call counter map if needed
+		if e.statCallCount == nil {
+			e.statCallCount = make(map[string]int)
+		}
+
+		// Increment call count for this path
+		e.statCallCount[name]++
+
+		// Only fail if we've exceeded the threshold
+		if e.statErrAfterCall > 0 && e.statCallCount[name] > e.statErrAfterCall {
+			return nil, e.statErr
+		}
+	}
+
+	return e.Fs.Stat(name)
+}
+
 // errorFile wraps afero.File to return errors for ReadDir.
 type errorFile struct {
 	afero.File
@@ -547,4 +720,23 @@ func (e *errorFile) Readdir(count int) ([]os.FileInfo, error) {
 	}
 
 	return e.File.Readdir(count)
+}
+
+// errorProgressWriter is a test writer that returns errors.
+//
+//nolint:govet // fieldalignment not critical for test helper
+type errorProgressWriter struct {
+	failAfter int // Number of writes before failing (0 = always fail)
+	writes    int
+	err       error
+}
+
+func (e *errorProgressWriter) Write(p []byte) (n int, err error) {
+	e.writes++
+
+	if e.failAfter == 0 || e.writes > e.failAfter {
+		return 0, e.err
+	}
+
+	return len(p), nil
 }

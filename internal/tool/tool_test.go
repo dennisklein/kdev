@@ -266,7 +266,7 @@ func TestToolExecPreparation(t *testing.T) {
 // The actual Exec method is tested indirectly through integration tests and
 // manual testing with the CLI.
 
-func TestPrepareExec(t *testing.T) {
+func TestPrepareExec(t *testing.T) { //nolint:maintidx // test function complexity is acceptable
 	t.Run("prepares binary and arguments when cached", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		home := testUser
@@ -406,6 +406,7 @@ func TestPrepareExec(t *testing.T) {
 
 	t.Run("handles VersionFunc error", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
+
 		t.Setenv("HOME", testUser)
 
 		tool := &Tool{
@@ -439,7 +440,7 @@ func TestPrepareExec(t *testing.T) {
 				return kubectlTestVersion, nil
 			},
 			DownloadURL: func(version, goos, goarch string) string {
-				return "http://example.com/binary"
+				return "http://example.com/binary" //nolint:goconst // test URL
 			},
 			ChecksumURL: func(version, goos, goarch string) string {
 				return checksumServer.URL
@@ -498,7 +499,7 @@ func TestPrepareExec(t *testing.T) {
 				return kubectlTestVersion, nil
 			},
 			DownloadURL: func(version, goos, goarch string) string {
-				return "http://example.com/binary"
+				return "http://example.com/binary" //nolint:goconst // test URL
 			},
 			ChecksumURL: func(version, goos, goarch string) string {
 				return "http://example.com/checksum"
@@ -558,6 +559,8 @@ func TestPrepareExec(t *testing.T) {
 }
 
 // errorWriter is a test writer that returns errors.
+//
+//nolint:govet // fieldalignment not critical for test helper
 type errorWriter struct {
 	failAfter int // Number of writes before failing (0 = always fail)
 	writes    int
