@@ -4,7 +4,7 @@
 #
 # Generated on 2025-10-06T12:04:34Z by kres bc281a9.
 
-ARG TOOLCHAIN
+ARG TOOLCHAIN=golang:latest-alpine
 
 # cleaned up specs and compiled versions
 FROM scratch AS generate
