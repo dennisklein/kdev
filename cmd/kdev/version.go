@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"os"
 	"runtime/debug"
 
 	"github.com/spf13/cobra"
@@ -20,8 +19,6 @@ func newVersionCmd() *cobra.Command {
 }
 
 func version(cmd *cobra.Command, args []string) error {
-	cmd.SetOut(os.Stdout)
-
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return errors.New("could not read embedded build info ('go build -buildvcs=true')")

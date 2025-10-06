@@ -21,6 +21,9 @@ func Execute() {
 
 func init() {
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newKubectlCmd())
+	rootCmd.AddCommand(newKindCmd())
+	rootCmd.AddCommand(newToolsCmd())
 }
 
 func main() {

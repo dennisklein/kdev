@@ -20,10 +20,31 @@ SPDX-License-Identifier = "MPL-2.0"
 
 [[annotations]]
 path = [
+  "cmd/kdev/kind.go",
+  "cmd/kdev/kind_test.go",
+  "cmd/kdev/kubectl.go",
+  "cmd/kdev/kubectl_test.go",
   "cmd/kdev/main.go",
+  "cmd/kdev/tools.go",
+  "cmd/kdev/tools_test.go",
   "cmd/kdev/version.go",
+  "cmd/kdev/version_test.go",
   "go.mod",
   "go.sum",
+  "internal/tool/cache.go",
+  "internal/tool/cache_test.go",
+  "internal/tool/download.go",
+  "internal/tool/download_test.go",
+  "internal/tool/kind.go",
+  "internal/tool/kind_test.go",
+  "internal/tool/kubectl.go",
+  "internal/tool/kubectl_test.go",
+  "internal/tool/paths.go",
+  "internal/tool/paths_test.go",
+  "internal/tool/registry.go",
+  "internal/tool/registry_test.go",
+  "internal/tool/tool.go",
+  "internal/tool/tool_test.go",
 ]
 SPDX-FileCopyrightText = "2025 GSI Helmholtzzentrum für Schwerionenforschung GmbH <https://www.gsi.de/en/>"
 SPDX-License-Identifier = "MPL-2.0"

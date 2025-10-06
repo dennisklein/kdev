@@ -55,6 +55,7 @@ RUN cd .
 RUN --mount=type=cache,target=/go/pkg,id=kdev/go/pkg go mod download
 RUN --mount=type=cache,target=/go/pkg,id=kdev/go/pkg go mod verify
 COPY ./cmd ./cmd
+COPY ./internal ./internal
 RUN --mount=type=cache,target=/go/pkg,id=kdev/go/pkg go list -mod=readonly all >/dev/null
 
 # builds kdev-linux-amd64
@@ -94,13 +95,13 @@ RUN --mount=type=cache,target=/root/.cache/go-build,id=kdev/root/.cache/go-build
 FROM base AS unit-tests-race
 WORKDIR /src
 ARG TESTPKGS
-RUN --mount=type=cache,target=/root/.cache/go-build,id=kdev/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp CGO_ENABLED=1 go test -race ${TESTPKGS}
+RUN --mount=type=cache,target=/root/.cache/go-build,id=kdev/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp CGO_ENABLED=1 go test -v -race ${TESTPKGS}
 
 # runs unit-tests
 FROM base AS unit-tests-run
 WORKDIR /src
 ARG TESTPKGS
-RUN --mount=type=cache,target=/root/.cache/go-build,id=kdev/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp go test -covermode=atomic -coverprofile=coverage.txt -coverpkg=${TESTPKGS} ${TESTPKGS}
+RUN --mount=type=cache,target=/root/.cache/go-build,id=kdev/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp go test -v -covermode=atomic -coverprofile=coverage.txt -coverpkg=${TESTPKGS} ${TESTPKGS}
 
 FROM scratch AS kdev-linux-amd64
 COPY --from=kdev-linux-amd64-build /kdev-linux-amd64 /kdev-linux-amd64

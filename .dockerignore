@@ -4,6 +4,7 @@
 
 *
 !cmd
+!internal
 !go.mod
 !go.sum
 !.golangci.yml
