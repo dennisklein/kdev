@@ -19,6 +19,7 @@ type CachedVersion struct {
 // CachedVersions returns all cached versions of this tool.
 func (t *Tool) CachedVersions() ([]CachedVersion, error) {
 	fs := t.getFs()
+	helper := t.getFSHelper()
 
 	dataDir, err := DataDir(fs)
 	if err != nil {
@@ -27,7 +28,7 @@ func (t *Tool) CachedVersions() ([]CachedVersion, error) {
 
 	toolDir := filepath.Join(dataDir, "kdev", t.Name)
 
-	if !isDir(fs, toolDir) {
+	if !helper.IsDir(toolDir) {
 		return nil, nil
 	}
 
@@ -44,7 +45,7 @@ func (t *Tool) CachedVersions() ([]CachedVersion, error) {
 		}
 
 		binPath := filepath.Join(toolDir, entry.Name(), t.Name)
-		if !exists(fs, binPath) {
+		if !helper.Exists(binPath) {
 			continue
 		}
 
@@ -75,6 +76,7 @@ func (t *Tool) LatestVersion(ctx context.Context) (string, error) {
 // CleanVersion removes a specific cached version.
 func (t *Tool) CleanVersion(version string) error {
 	fs := t.getFs()
+	helper := t.getFSHelper()
 
 	dataDir, err := DataDir(fs)
 	if err != nil {
@@ -83,7 +85,7 @@ func (t *Tool) CleanVersion(version string) error {
 
 	versionDir := filepath.Join(dataDir, "kdev", t.Name, version)
 
-	if !isDir(fs, versionDir) {
+	if !helper.IsDir(versionDir) {
 		return nil
 	}
 
@@ -97,6 +99,7 @@ func (t *Tool) CleanVersion(version string) error {
 // CleanAll removes all cached versions of this tool.
 func (t *Tool) CleanAll() error {
 	fs := t.getFs()
+	helper := t.getFSHelper()
 
 	dataDir, err := DataDir(fs)
 	if err != nil {
@@ -105,7 +108,7 @@ func (t *Tool) CleanAll() error {
 
 	toolDir := filepath.Join(dataDir, "kdev", t.Name)
 
-	if !isDir(fs, toolDir) {
+	if !helper.IsDir(toolDir) {
 		return nil
 	}
 
@@ -119,6 +122,7 @@ func (t *Tool) CleanAll() error {
 // Download pre-downloads the tool without executing it.
 func (t *Tool) Download(ctx context.Context) error {
 	fs := t.getFs()
+	helper := t.getFSHelper()
 
 	dataDir, err := DataDir(fs)
 	if err != nil {
@@ -132,7 +136,7 @@ func (t *Tool) Download(ctx context.Context) error {
 
 	binPath := filepath.Join(dataDir, "kdev", t.Name, version, t.Name)
 
-	if exists(fs, binPath) {
+	if helper.Exists(binPath) {
 		return nil
 	}
 

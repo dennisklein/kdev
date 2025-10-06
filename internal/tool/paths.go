@@ -19,22 +19,12 @@ func DataDir(fs afero.Fs) (string, error) {
 		return "", err
 	}
 
+	helper := NewFSHelper(fs)
 	xdgDefault := filepath.Join(homeDir, ".local", "share")
-	if isDir(fs, xdgDefault) {
+	if helper.IsDir(xdgDefault) {
 		return xdgDefault, nil
 	}
 
 	return filepath.Join(homeDir, ".kdev"), nil
 }
 
-func exists(fs afero.Fs, path string) bool {
-	info, err := fs.Stat(path)
-
-	return err == nil && !info.IsDir()
-}
-
-func isDir(fs afero.Fs, path string) bool {
-	info, err := fs.Stat(path)
-
-	return err == nil && info.IsDir()
-}

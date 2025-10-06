@@ -21,6 +21,7 @@ type Tool struct {
 	DownloadURL    func(version, goos, goarch string) string
 	ChecksumURL    func(version, goos, goarch string) string
 	Fs             afero.Fs // Filesystem abstraction for testing (defaults to OsFs)
+	fsHelper       *FSHelper
 }
 
 // Exec downloads the tool if not cached and executes it with the given arguments.
@@ -38,6 +39,7 @@ func (t *Tool) Exec(ctx context.Context, args []string) error {
 // cached, and executable. Returns the binary path and arguments to execute.
 func (t *Tool) prepareExec(ctx context.Context, args []string) (string, []string, error) {
 	fs := t.getFs()
+	helper := t.getFSHelper()
 
 	dataDir, err := DataDir(fs)
 	if err != nil {
@@ -51,7 +53,7 @@ func (t *Tool) prepareExec(ctx context.Context, args []string) (string, []string
 
 	binPath := filepath.Join(dataDir, "kdev", t.Name, version, t.Name)
 
-	if !exists(fs, binPath) {
+	if !helper.Exists(binPath) {
 		if err := t.writeProgress("Downloading %s %s...\n", t.Name, version); err != nil {
 			return "", nil, fmt.Errorf("failed to write progress: %w", err)
 		}
@@ -81,6 +83,14 @@ func (t *Tool) getFs() afero.Fs {
 	}
 
 	return t.Fs
+}
+
+// getFSHelper returns the filesystem helper, creating one if needed.
+func (t *Tool) getFSHelper() *FSHelper {
+	if t.fsHelper == nil {
+		t.fsHelper = NewFSHelper(t.getFs())
+	}
+	return t.fsHelper
 }
 
 // writeProgress writes a progress message if a ProgressWriter is configured.

@@ -58,9 +58,10 @@ func TestDataDir(t *testing.T) {
 	})
 }
 
-func TestExists(t *testing.T) {
+func TestFSHelper_Exists(t *testing.T) {
 	t.Run("returns true for existing file", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
+		helper := NewFSHelper(fs)
 		path := "/test/file.txt"
 
 		err := fs.MkdirAll("/test", 0o755)
@@ -69,45 +70,50 @@ func TestExists(t *testing.T) {
 		err = afero.WriteFile(fs, path, []byte("content"), 0o644)
 		require.NoError(t, err)
 
-		assert.True(t, exists(fs, path))
+		assert.True(t, helper.Exists(path))
 	})
 
 	t.Run("returns false for non-existent file", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
+		helper := NewFSHelper(fs)
 
-		assert.False(t, exists(fs, "/nonexistent"))
+		assert.False(t, helper.Exists("/nonexistent"))
 	})
 
 	t.Run("returns false for directory", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
+		helper := NewFSHelper(fs)
 		path := "/test/dir"
 
 		err := fs.MkdirAll(path, 0o755)
 		require.NoError(t, err)
 
-		assert.False(t, exists(fs, path))
+		assert.False(t, helper.Exists(path))
 	})
 }
 
-func TestIsDir(t *testing.T) {
+func TestFSHelper_IsDir(t *testing.T) {
 	t.Run("returns true for existing directory", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
+		helper := NewFSHelper(fs)
 		path := "/test/dir"
 
 		err := fs.MkdirAll(path, 0o755)
 		require.NoError(t, err)
 
-		assert.True(t, isDir(fs, path))
+		assert.True(t, helper.IsDir(path))
 	})
 
 	t.Run("returns false for non-existent directory", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
+		helper := NewFSHelper(fs)
 
-		assert.False(t, isDir(fs, "/nonexistent"))
+		assert.False(t, helper.IsDir("/nonexistent"))
 	})
 
 	t.Run("returns false for file", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
+		helper := NewFSHelper(fs)
 		path := "/test/file.txt"
 
 		err := fs.MkdirAll("/test", 0o755)
@@ -116,6 +122,14 @@ func TestIsDir(t *testing.T) {
 		err = afero.WriteFile(fs, path, []byte("content"), 0o644)
 		require.NoError(t, err)
 
-		assert.False(t, isDir(fs, path))
+		assert.False(t, helper.IsDir(path))
+	})
+}
+
+func TestFSHelper_NewWithNilFs(t *testing.T) {
+	t.Run("uses OsFs when nil is provided", func(t *testing.T) {
+		helper := NewFSHelper(nil)
+		assert.NotNil(t, helper)
+		assert.NotNil(t, helper.Fs())
 	})
 }
