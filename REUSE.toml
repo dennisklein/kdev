@@ -45,6 +45,8 @@ path = [
   "internal/tool/registry_test.go",
   "internal/tool/tool.go",
   "internal/tool/tool_test.go",
+  "test/e2e/exec_test.go",
+  "test/e2e/mock/tool.go",
 ]
 SPDX-FileCopyrightText = "2025 GSI Helmholtzzentrum für Schwerionenforschung GmbH <https://www.gsi.de/en/>"
 SPDX-License-Identifier = "MPL-2.0"

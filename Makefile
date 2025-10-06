@@ -196,6 +196,16 @@ unit-tests:  ## Performs unit tests
 unit-tests-race:  ## Performs unit tests with race detection enabled.
 	@$(MAKE) target-$@
 
+.PHONY: e2e-tests
+e2e-tests:  ## Performs end-to-end tests
+	@docker run --rm -v $(PWD):/src:Z -w /src golang:$(GO_VERSION) \
+		bash -c "export GOTOOLCHAIN=local; \
+		export GO111MODULE=on; export GOPROXY=https://proxy.golang.org; \
+		cd test/e2e && go test -v -tags=e2e ./..."
+
+.PHONY: test
+test: unit-tests e2e-tests  ## Runs all tests (unit + e2e)
+
 .PHONY: $(ARTIFACTS)/kdev-linux-amd64
 $(ARTIFACTS)/kdev-linux-amd64:
 	@$(MAKE) local-kdev-linux-amd64 DEST=$(ARTIFACTS)
