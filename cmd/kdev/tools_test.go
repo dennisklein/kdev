@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/dennisklein/kdev/internal/tool"
+	"github.com/dennisklein/kdev/internal/util"
 )
 
 func TestNewToolsCmd(t *testing.T) {
@@ -167,7 +168,7 @@ func TestRunToolsClean(t *testing.T) { //nolint:maintidx // test function comple
 		assert.Contains(t, output, "Reclaimed")
 
 		// Verify space calculation is correct
-		expectedSize := formatBytes(totalSize)
+		expectedSize := util.FormatBytes(totalSize)
 		assert.Contains(t, output, expectedSize)
 	})
 
@@ -243,7 +244,7 @@ func TestRunToolsClean(t *testing.T) { //nolint:maintidx // test function comple
 		assert.Contains(t, output, "Reclaimed")
 
 		// Total should be 350 KiB
-		expectedSize := formatBytes(1024 * 350)
+		expectedSize := util.FormatBytes(1024 * 350)
 		assert.Contains(t, output, expectedSize)
 	})
 
@@ -701,51 +702,6 @@ func TestResolveTools(t *testing.T) {
 	})
 }
 
-func TestFormatBytes(t *testing.T) {
-	tests := []struct {
-		name  string
-		want  string
-		bytes int64
-	}{
-		{
-			name:  "bytes",
-			want:  "500 B",
-			bytes: 500,
-		},
-		{
-			name:  "kilobytes",
-			want:  "1.0 KiB",
-			bytes: 1024,
-		},
-		{
-			name:  "megabytes",
-			want:  "1.0 MiB",
-			bytes: 1024 * 1024,
-		},
-		{
-			name:  "gigabytes",
-			want:  "1.0 GiB",
-			bytes: 1024 * 1024 * 1024,
-		},
-		{
-			name:  "partial kilobytes",
-			want:  "1.5 KiB",
-			bytes: 1536, // 1.5 KiB
-		},
-		{
-			name:  "large value",
-			want:  "5.0 GiB",
-			bytes: 5 * 1024 * 1024 * 1024, // 5 GiB
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatBytes(tt.bytes)
-			assert.Equal(t, tt.want, result)
-		})
-	}
-}
 
 // newTestRegistry creates a registry for testing.
 func newTestRegistry(buf *bytes.Buffer) *tool.Registry {

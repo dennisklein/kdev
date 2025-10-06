@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/dennisklein/kdev/internal/tool"
+	"github.com/dennisklein/kdev/internal/util"
 )
 
 const (
@@ -112,7 +113,7 @@ func runToolsClean(cmd *cobra.Command, args []string) error {
 	}
 
 	if totalReclaimed > 0 {
-		reclaimedStr := successStyle.Bold(true).Render(formatBytes(totalReclaimed))
+		reclaimedStr := successStyle.Bold(true).Render(util.FormatBytes(totalReclaimed))
 		message := "Reclaimed"
 
 		if _, err := fmt.Fprintf(out, "%s %s\n", message, reclaimedStr); err != nil {
@@ -143,7 +144,7 @@ func runToolsInfo(cmd *cobra.Command, args []string) error {
 	if len(tools) > 1 && totalSize > 0 {
 		totalName := toolNameStyle.Render("cache size")
 		emptyVersion := versionStyle.Render("")
-		totalSizeStr := totalSizeStyle.Render(formatBytes(totalSize))
+		totalSizeStr := totalSizeStyle.Render(util.FormatBytes(totalSize))
 
 		if _, err := fmt.Fprintf(out, "\n%s  %s  %s\n", totalName, emptyVersion, totalSizeStr); err != nil {
 			return fmt.Errorf("failed to write output: %w", err)
@@ -186,7 +187,7 @@ func printToolInfo(out io.Writer, t *tool.Tool) (int64, error) {
 		}
 
 		styledVersion := style.Render(v.Version)
-		styledSize := sizeStyle.Render(formatBytes(v.Size))
+		styledSize := sizeStyle.Render(util.FormatBytes(v.Size))
 
 		if _, err := fmt.Fprintf(out, "%s  %s  %s  %s\n", toolName, styledVersion, styledSize, v.Path); err != nil {
 			return 0, fmt.Errorf("failed to write output: %w", err)
@@ -257,22 +258,4 @@ func resolveTools(registry *tool.Registry, names []string) []*tool.Tool {
 	}
 
 	return tools
-}
-
-func formatBytes(bytes int64) string {
-	const unit = 1024
-
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-
-	units := []string{"KiB", "MiB", "GiB", "TiB"}
-
-	return fmt.Sprintf("%.1f %s", float64(bytes)/float64(div), units[exp])
 }
