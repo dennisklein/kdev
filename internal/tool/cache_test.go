@@ -18,6 +18,7 @@ import (
 
 const testHome = "/home/testuser"
 
+//nolint:maintidx // test function with multiple subtests
 func TestCachedVersions(t *testing.T) {
 	t.Run("returns empty slice when no cache exists", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
@@ -180,6 +181,168 @@ func TestCachedVersions(t *testing.T) {
 		assert.Equal(t, "v1.30.0", cached[0].Version)
 		assert.Equal(t, "v1.28.0", cached[1].Version)
 	})
+
+	t.Run("sorts versions using semantic versioning", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		home := testHome
+
+		t.Setenv("HOME", home)
+
+		dataDir := filepath.Join(home, ".kdev")
+		toolDir := filepath.Join(dataDir, "kdev", "kubectl")
+
+		// Create versions that would be incorrectly sorted with string comparison
+		// String sort: v1.2.2 > v1.2.10 (incorrect)
+		// Semver sort: v1.2.10 > v1.2.2 (correct)
+		versions := []string{"v1.2.2", "v1.2.10", "v1.2.3", "v1.2.1"}
+		for _, v := range versions {
+			binPath := filepath.Join(toolDir, v, "kubectl")
+			err := fs.MkdirAll(filepath.Dir(binPath), 0o755)
+			require.NoError(t, err)
+
+			err = afero.WriteFile(fs, binPath, []byte("fake binary "+v), 0o755)
+			require.NoError(t, err)
+		}
+
+		tool := &Tool{
+			Name: "kubectl",
+			Fs:   fs,
+		}
+
+		cached, err := tool.CachedVersions()
+		require.NoError(t, err)
+		require.Len(t, cached, 4)
+
+		// Should be sorted in descending semantic version order
+		assert.Equal(t, "v1.2.10", cached[0].Version, "v1.2.10 should be first (newest)")
+		assert.Equal(t, "v1.2.3", cached[1].Version)
+		assert.Equal(t, "v1.2.2", cached[2].Version)
+		assert.Equal(t, "v1.2.1", cached[3].Version, "v1.2.1 should be last (oldest)")
+	})
+
+	t.Run("handles non-semver versions with fallback", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		home := testHome
+
+		t.Setenv("HOME", home)
+
+		dataDir := filepath.Join(home, ".kdev")
+		toolDir := filepath.Join(dataDir, "kdev", "kubectl")
+
+		// Mix of semver and non-semver versions
+		versions := []string{"v1.30.0", "latest", "v1.29.0", "dev-branch"}
+		for _, v := range versions {
+			binPath := filepath.Join(toolDir, v, "kubectl")
+			err := fs.MkdirAll(filepath.Dir(binPath), 0o755)
+			require.NoError(t, err)
+
+			err = afero.WriteFile(fs, binPath, []byte("fake binary "+v), 0o755)
+			require.NoError(t, err)
+		}
+
+		tool := &Tool{
+			Name: "kubectl",
+			Fs:   fs,
+		}
+
+		cached, err := tool.CachedVersions()
+		require.NoError(t, err)
+		require.Len(t, cached, 4)
+
+		// Semver versions should be properly sorted
+		// Non-semver falls back to string comparison
+		// v1.30.0 and v1.29.0 should be sorted correctly
+		var semverVersions []string
+
+		for _, cv := range cached {
+			if cv.Version == "v1.30.0" || cv.Version == "v1.29.0" {
+				semverVersions = append(semverVersions, cv.Version)
+			}
+		}
+
+		require.Len(t, semverVersions, 2)
+		assert.Equal(t, "v1.30.0", semverVersions[0], "v1.30.0 should come before v1.29.0")
+		assert.Equal(t, "v1.29.0", semverVersions[1])
+	})
+}
+
+func TestCompareVersions(t *testing.T) {
+	tests := []struct {
+		name     string
+		v1       string
+		v2       string
+		expected int
+	}{
+		{
+			name:     "v1 greater than v2",
+			v1:       "v1.30.0",
+			v2:       "v1.29.0",
+			expected: 1,
+		},
+		{
+			name:     "v1 less than v2",
+			v1:       "v1.28.0",
+			v2:       "v1.29.0",
+			expected: -1,
+		},
+		{
+			name:     "versions equal",
+			v1:       "v1.29.0",
+			v2:       "v1.29.0",
+			expected: 0,
+		},
+		{
+			name:     "semantic version edge case - double digit patch",
+			v1:       "v1.2.10",
+			v2:       "v1.2.2",
+			expected: 1, // v1.2.10 > v1.2.2 (NOT string comparison)
+		},
+		{
+			name:     "semantic version edge case - double digit minor",
+			v1:       "v1.10.0",
+			v2:       "v1.2.0",
+			expected: 1, // v1.10.0 > v1.2.0
+		},
+		{
+			name:     "non-semver fallback to string comparison v1 > v2",
+			v1:       "latest",
+			v2:       "dev",
+			expected: 1, // "latest" > "dev" alphabetically
+		},
+		{
+			name:     "non-semver fallback to string comparison v1 < v2",
+			v1:       "alpha",
+			v2:       "beta",
+			expected: -1, // "alpha" < "beta" alphabetically
+		},
+		{
+			name:     "non-semver equal",
+			v1:       "latest",
+			v2:       "latest",
+			expected: 0,
+		},
+		{
+			name:     "mixed: semver vs non-semver",
+			v1:       "v1.30.0",
+			v2:       "latest",
+			expected: 1, // Falls back to string comparison: "v1.30.0" > "latest"
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compareVersions(tt.v1, tt.v2)
+
+			switch {
+			case tt.expected > 0:
+				assert.Greater(t, result, 0, "expected %s > %s", tt.v1, tt.v2)
+			case tt.expected < 0:
+				assert.Less(t, result, 0, "expected %s < %s", tt.v1, tt.v2)
+			default:
+				assert.Equal(t, 0, result, "expected %s == %s", tt.v1, tt.v2)
+			}
+		})
+	}
 }
 
 func TestLatestVersion(t *testing.T) {
@@ -564,10 +727,10 @@ func TestDownloadErrors(t *testing.T) {
 				return "v1.0.0", nil //nolint:goconst // test version string
 			},
 			DownloadURL: func(version, goos, goarch string) string {
-				return "http://example.com/binary"
+				return "http://example.com/binary" //nolint:goconst // test URL
 			},
 			ChecksumURL: func(version, goos, goarch string) string {
-				return "http://example.com/checksum"
+				return "http://example.com/checksum" //nolint:goconst // test URL
 			},
 		}
 

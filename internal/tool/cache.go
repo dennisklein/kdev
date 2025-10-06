@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/afero"
 )
 
@@ -62,10 +63,31 @@ func (t *Tool) CachedVersions() ([]CachedVersion, error) {
 	}
 
 	sort.Slice(versions, func(i, j int) bool {
-		return versions[i].Version > versions[j].Version
+		return compareVersions(versions[i].Version, versions[j].Version) > 0
 	})
 
 	return versions, nil
+}
+
+// compareVersions compares two version strings using semantic versioning.
+// Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal.
+// Falls back to string comparison if versions aren't valid semver.
+func compareVersions(v1, v2 string) int {
+	ver1, err1 := semver.NewVersion(v1)
+	ver2, err2 := semver.NewVersion(v2)
+
+	// If either version is not valid semver, fall back to string comparison
+	if err1 != nil || err2 != nil {
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
+		}
+
+		return 0
+	}
+
+	return ver1.Compare(ver2)
 }
 
 // LatestVersion returns the latest available version from the upstream source.

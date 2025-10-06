@@ -3,6 +3,7 @@ module github.com/dennisklein/kdev
 go 1.24.7
 
 require (
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/spf13/afero v1.15.0
