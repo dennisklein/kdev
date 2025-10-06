@@ -26,12 +26,14 @@ func (t *Tool) download(ctx context.Context, destPath, version string) error {
 		return fmt.Errorf("failed to fetch checksum: %w", err)
 	}
 
+	client := getRetryableClient()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.StandardClient().Do(req)
 	if err != nil {
 		return err
 	}
@@ -83,7 +85,9 @@ func (t *Tool) download(ctx context.Context, destPath, version string) error {
 }
 
 func fetchChecksum(ctx context.Context, url string) (string, error) {
-	data, err := fetchHTTPContent(ctx, http.DefaultClient, url)
+	client := getRetryableClient()
+
+	data, err := fetchHTTPContent(ctx, client.StandardClient(), url)
 	if err != nil {
 		return "", err
 	}

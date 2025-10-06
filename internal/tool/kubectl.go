@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 )
 
@@ -14,12 +13,14 @@ func NewKubectl(progress io.Writer) *Tool {
 }
 
 func kubectlVersion(ctx context.Context) (version string, err error) {
-	return kubectlVersionWithClient(ctx, http.DefaultClient, "https://dl.k8s.io/release/stable.txt")
+	client := getRetryableClient()
+
+	return kubectlVersionWithClient(ctx, client.StandardClient(), "https://dl.k8s.io/release/stable.txt")
 }
 
 // kubectlVersionWithClient fetches kubectl version from the specified URL using the given client.
 // This function is exported for testing purposes.
-func kubectlVersionWithClient(ctx context.Context, client *http.Client, url string) (string, error) {
+func kubectlVersionWithClient(ctx context.Context, client HTTPClient, url string) (string, error) {
 	data, err := fetchHTTPContent(ctx, client, url)
 	if err != nil {
 		return "", err

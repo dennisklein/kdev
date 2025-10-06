@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -59,8 +60,10 @@ func TestFetchChecksum(t *testing.T) {
 		defer server.Close()
 
 		_, err := fetchChecksum(context.Background(), server.URL)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unexpected status code")
+		require.Error(t, err)
+		// With retry logic, error message includes retry information
+		assert.True(t, strings.Contains(err.Error(), "unexpected status code") ||
+			strings.Contains(err.Error(), "giving up"))
 	})
 
 	t.Run("handles context cancellation", func(t *testing.T) {
@@ -205,7 +208,9 @@ func TestToolDownload(t *testing.T) { //nolint:maintidx // test function complex
 		destPath := testToolPath
 		err := tool.download(context.Background(), destPath, testVersion)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unexpected status code")
+		// With retry logic, error message includes retry information
+		assert.True(t, strings.Contains(err.Error(), "unexpected status code") ||
+			strings.Contains(err.Error(), "giving up"))
 	})
 
 	t.Run("uses correct URL parameters", func(t *testing.T) {
