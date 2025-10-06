@@ -52,20 +52,16 @@ func (t *Tool) prepareExec(ctx context.Context, args []string) (string, []string
 	binPath := filepath.Join(dataDir, "kdev", t.Name, version, t.Name)
 
 	if !exists(fs, binPath) {
-		if t.ProgressWriter != nil {
-			if _, err := fmt.Fprintf(t.ProgressWriter, "Downloading %s %s...\n", t.Name, version); err != nil {
-				return "", nil, fmt.Errorf("failed to write progress: %w", err)
-			}
+		if err := t.writeProgress("Downloading %s %s...\n", t.Name, version); err != nil {
+			return "", nil, fmt.Errorf("failed to write progress: %w", err)
 		}
 
 		if err := t.download(ctx, binPath, version); err != nil {
 			return "", nil, fmt.Errorf("failed to download: %w", err)
 		}
 
-		if t.ProgressWriter != nil {
-			if _, err := fmt.Fprintf(t.ProgressWriter, "%s %s downloaded successfully\n", t.Name, version); err != nil {
-				return "", nil, fmt.Errorf("failed to write progress: %w", err)
-			}
+		if err := t.writeProgress("%s %s downloaded successfully\n", t.Name, version); err != nil {
+			return "", nil, fmt.Errorf("failed to write progress: %w", err)
 		}
 	}
 
@@ -85,4 +81,14 @@ func (t *Tool) getFs() afero.Fs {
 	}
 
 	return t.Fs
+}
+
+// writeProgress writes a progress message if a ProgressWriter is configured.
+func (t *Tool) writeProgress(format string, args ...interface{}) error {
+	if t.ProgressWriter != nil {
+		_, err := fmt.Fprintf(t.ProgressWriter, format, args...)
+		return err
+	}
+
+	return nil
 }

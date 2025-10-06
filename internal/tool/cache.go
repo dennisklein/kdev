@@ -136,10 +136,8 @@ func (t *Tool) Download(ctx context.Context) error {
 		return nil
 	}
 
-	if t.ProgressWriter != nil {
-		if _, err := fmt.Fprintf(t.ProgressWriter, "Downloading %s %s...\n", t.Name, version); err != nil {
-			return fmt.Errorf("failed to write progress: %w", err)
-		}
+	if err := t.writeProgress("Downloading %s %s...\n", t.Name, version); err != nil {
+		return fmt.Errorf("failed to write progress: %w", err)
 	}
 
 	if err := t.download(ctx, binPath, version); err != nil {
@@ -150,10 +148,8 @@ func (t *Tool) Download(ctx context.Context) error {
 		return fmt.Errorf("failed to make executable: %w", err)
 	}
 
-	if t.ProgressWriter != nil {
-		if _, err := fmt.Fprintf(t.ProgressWriter, "%s %s downloaded successfully\n", t.Name, version); err != nil {
-			return fmt.Errorf("failed to write progress: %w", err)
-		}
+	if err := t.writeProgress("%s %s downloaded successfully\n", t.Name, version); err != nil {
+		return fmt.Errorf("failed to write progress: %w", err)
 	}
 
 	return nil
