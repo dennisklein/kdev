@@ -2,9 +2,10 @@ package tool
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/google/go-github/v58/github"
 )
 
 // NewKind creates a Tool configured for kind (Kubernetes in Docker).
@@ -13,28 +14,14 @@ func NewKind(progress io.Writer) *Tool {
 }
 
 func kindVersion(ctx context.Context) (version string, err error) {
-	client := getRetryableClient()
+	client := github.NewClient(nil)
 
-	return kindVersionWithClient(ctx, client.StandardClient(), "https://api.github.com/repos/kubernetes-sigs/kind/releases/latest")
-}
-
-// kindVersionWithClient fetches kind version from the specified URL using the given client.
-// This function is exported for testing purposes.
-func kindVersionWithClient(ctx context.Context, client HTTPClient, url string) (string, error) {
-	data, err := fetchHTTPContent(ctx, client, url)
+	release, _, err := client.Repositories.GetLatestRelease(ctx, "kubernetes-sigs", "kind")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get latest kind release: %w", err)
 	}
 
-	var release struct {
-		TagName string `json:"tag_name"`
-	}
-
-	if err := json.Unmarshal(data, &release); err != nil {
-		return "", err
-	}
-
-	return release.TagName, nil
+	return release.GetTagName(), nil
 }
 
 func kindDownloadURL(version, goos, goarch string) string {

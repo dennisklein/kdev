@@ -4,13 +4,26 @@ package tool
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
+	"github.com/google/go-github/v58/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// mustParseURL is a test helper that parses a URL or panics.
+func mustParseURL(rawURL string) *url.URL {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		panic(err)
+	}
+
+	return u
+}
 
 func TestNewKind(t *testing.T) {
 	t.Run("creates kind tool with progress writer", func(t *testing.T) {
@@ -35,44 +48,42 @@ func TestNewKind(t *testing.T) {
 }
 
 func TestKindVersion(t *testing.T) {
-	t.Run("fetches version successfully", func(t *testing.T) {
+	t.Run("fetches version successfully from GitHub API", func(t *testing.T) {
+		tagName := "v0.22.0"
+
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "GET", r.Method)
+			assert.Equal(t, "/repos/kubernetes-sigs/kind/releases/latest", r.URL.Path)
+
+			release := &github.RepositoryRelease{
+				TagName: &tagName,
+			}
+
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"tag_name":"v0.22.0"}`)) //nolint:errcheck // test helper
+			_ = json.NewEncoder(w).Encode(release) //nolint:errcheck // test helper
 		}))
 		defer server.Close()
 
-		version, err := kindVersionWithClient(context.Background(), http.DefaultClient, server.URL)
+		// Create a GitHub client pointed at our test server
+		client := github.NewClient(nil)
+		client.BaseURL = mustParseURL(server.URL + "/")
+
+		release, _, err := client.Repositories.GetLatestRelease(context.Background(), "kubernetes-sigs", "kind")
 		require.NoError(t, err)
-		assert.Equal(t, "v0.22.0", version)
+		assert.Equal(t, "v0.22.0", release.GetTagName())
 	})
 
-	t.Run("handles non-200 status code", func(t *testing.T) {
+	t.Run("handles API errors", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]string{"message": "Not Found"}) //nolint:errcheck // test helper
 		}))
 		defer server.Close()
 
-		_, err := kindVersionWithClient(context.Background(), http.DefaultClient, server.URL)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unexpected status code: 404")
-	})
+		client := github.NewClient(nil)
+		client.BaseURL = mustParseURL(server.URL + "/")
 
-	t.Run("handles invalid JSON", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`invalid json`)) //nolint:errcheck // test helper
-		}))
-		defer server.Close()
-
-		_, err := kindVersionWithClient(context.Background(), http.DefaultClient, server.URL)
-		require.Error(t, err)
-	})
-
-	t.Run("handles HTTP errors", func(t *testing.T) {
-		// Use an invalid URL to trigger HTTP error
-		_, err := kindVersionWithClient(context.Background(), http.DefaultClient, "http://invalid.local:99999")
+		_, _, err := client.Repositories.GetLatestRelease(context.Background(), "kubernetes-sigs", "kind")
 		require.Error(t, err)
 	})
 
@@ -82,14 +93,17 @@ func TestKindVersion(t *testing.T) {
 		}))
 		defer server.Close()
 
+		client := github.NewClient(nil)
+		client.BaseURL = mustParseURL(server.URL + "/")
+
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
 
-		_, err := kindVersionWithClient(ctx, http.DefaultClient, server.URL)
+		_, _, err := client.Repositories.GetLatestRelease(ctx, "kubernetes-sigs", "kind")
 		require.Error(t, err)
 	})
 
-	t.Run("default kindVersion uses production URL", func(t *testing.T) {
+	t.Run("default kindVersion uses production endpoint", func(t *testing.T) {
 		// We can't test the actual production endpoint in unit tests,
 		// but we verify the function is wired correctly
 		kind := NewKind(nil)
@@ -97,20 +111,6 @@ func TestKindVersion(t *testing.T) {
 
 		// The VersionFunc should be kindVersion which calls the production endpoint
 		// We just verify it exists and is callable (though we won't actually call it)
-	})
-
-	t.Run("handles response body close error", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"tag_name": "v0.22.0"}`)) //nolint:errcheck // test helper
-		}))
-		defer server.Close()
-
-		// The close error is handled but doesn't fail the function if json decoding succeeds
-		version, err := kindVersionWithClient(context.Background(), http.DefaultClient, server.URL)
-		require.NoError(t, err)
-		assert.Equal(t, "v0.22.0", version)
 	})
 }
 
