@@ -1,6 +1,8 @@
 package tool
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"fmt"
@@ -9,6 +11,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/spf13/afero"
 )
 
 func (t *Tool) download(ctx context.Context, destPath, version string) error {
@@ -97,6 +101,15 @@ func (t *Tool) download(ctx context.Context, destPath, version string) error {
 		return fmt.Errorf("checksum mismatch: expected %s, got %s", expectedChecksum, actualChecksum)
 	}
 
+	// If the downloaded file is a tar.gz, extract it
+	if strings.HasSuffix(url, ".tar.gz") {
+		if err := extractTarGzFile(fs, tmpFile, destPath, t.Name); err != nil {
+			return fmt.Errorf("failed to extract archive: %w", err)
+		}
+
+		return nil
+	}
+
 	return fs.Rename(tmpFile, destPath)
 }
 
@@ -117,4 +130,57 @@ func fetchChecksum(ctx context.Context, url string) (string, error) {
 	}
 
 	return checksumStr, nil
+}
+
+// extractTarGzFile extracts a single binary from a tar.gz file.
+// It looks for a file matching the tool name in the archive root.
+func extractTarGzFile(fs afero.Fs, archivePath, destPath, toolName string) error {
+	// Open the archive
+	archiveFile, err := fs.Open(archivePath)
+	if err != nil {
+		return fmt.Errorf("failed to open archive: %w", err)
+	}
+	defer archiveFile.Close() //nolint:errcheck // close on read-only file
+
+	gzr, err := gzip.NewReader(archiveFile)
+	if err != nil {
+		return fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gzr.Close() //nolint:errcheck // close on reader
+
+	tr := tar.NewReader(gzr)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return fmt.Errorf("failed to read tar: %w", err)
+		}
+
+		// Look for the binary matching the tool name
+		if header.Name == toolName || header.Name == "./"+toolName {
+			out, err := fs.Create(destPath)
+			if err != nil {
+				return fmt.Errorf("failed to create output file: %w", err)
+			}
+
+			if _, err := io.Copy(out, tr); err != nil {
+				_ = out.Close() //nolint:errcheck // close on error path
+
+				return fmt.Errorf("failed to extract binary: %w", err)
+			}
+
+			if err := out.Close(); err != nil {
+				return err
+			}
+
+			// Remove the archive file after successful extraction
+			return fs.Remove(archivePath)
+		}
+	}
+
+	return fmt.Errorf("binary %s not found in archive", toolName)
 }

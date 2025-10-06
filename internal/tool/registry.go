@@ -14,8 +14,9 @@ type Registry struct {
 func NewRegistry(progress io.Writer) *Registry {
 	return &Registry{
 		tools: map[string]*Tool{
-			"kubectl": NewKubectl(progress),
+			"cilium":  NewCilium(progress),
 			"kind":    NewKind(progress),
+			"kubectl": NewKubectl(progress),
 		},
 	}
 }

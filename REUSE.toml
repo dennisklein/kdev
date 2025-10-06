@@ -20,6 +20,8 @@ SPDX-License-Identifier = "MPL-2.0"
 
 [[annotations]]
 path = [
+  "cmd/kdev/cilium.go",
+  "cmd/kdev/cilium_test.go",
   "cmd/kdev/common.go",
   "cmd/kdev/kind.go",
   "cmd/kdev/kind_test.go",
@@ -34,6 +36,7 @@ path = [
   "go.sum",
   "internal/tool/cache.go",
   "internal/tool/cache_test.go",
+  "internal/tool/cilium.go",
   "internal/tool/config.go",
   "internal/tool/download.go",
   "internal/tool/download_test.go",

@@ -64,11 +64,12 @@ func TestRegistryAll(t *testing.T) {
 		registry := NewRegistry(nil)
 
 		names := registry.All()
-		require.Len(t, names, 2)
+		require.Len(t, names, 3)
 
-		// Names should be sorted alphabetically: kind, kubectl
-		assert.Equal(t, "kind", names[0])
-		assert.Equal(t, "kubectl", names[1])
+		// Names should be sorted alphabetically: cilium, kind, kubectl
+		assert.Equal(t, "cilium", names[0])
+		assert.Equal(t, "kind", names[1])
+		assert.Equal(t, "kubectl", names[2])
 	})
 }
 
@@ -77,10 +78,11 @@ func TestRegistryAllTools(t *testing.T) {
 		registry := NewRegistry(nil)
 
 		tools := registry.AllTools()
-		require.Len(t, tools, 2)
+		require.Len(t, tools, 3)
 
-		// Tools should be sorted alphabetically: kind, kubectl
-		assert.Equal(t, "kind", tools[0].Name)
-		assert.Equal(t, "kubectl", tools[1].Name)
+		// Tools should be sorted alphabetically: cilium, kind, kubectl
+		assert.Equal(t, "cilium", tools[0].Name)
+		assert.Equal(t, "kind", tools[1].Name)
+		assert.Equal(t, "kubectl", tools[2].Name)
 	})
 }

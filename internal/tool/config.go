@@ -45,3 +45,13 @@ func kindConfig() Config {
 		ChecksumURL: kindChecksumURL,
 	}
 }
+
+// ciliumConfig returns the configuration for cilium CLI.
+func ciliumConfig() Config {
+	return Config{
+		Name:        "cilium",
+		VersionFunc: ciliumVersion,
+		DownloadURL: ciliumDownloadURL,
+		ChecksumURL: ciliumChecksumURL,
+	}
+}

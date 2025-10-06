@@ -663,11 +663,12 @@ func TestResolveTools(t *testing.T) {
 
 		tools := resolveTools(registry, nil)
 
-		assert.Len(t, tools, 2) // Should have kind and kubectl
+		assert.Len(t, tools, 3) // Should have cilium, kind and kubectl
 
-		// Tools should be sorted alphabetically: kind, kubectl
-		assert.Equal(t, "kind", tools[0].Name)
-		assert.Equal(t, "kubectl", tools[1].Name)
+		// Tools should be sorted alphabetically: cilium, kind, kubectl
+		assert.Equal(t, "cilium", tools[0].Name)
+		assert.Equal(t, "kind", tools[1].Name)
+		assert.Equal(t, "kubectl", tools[2].Name)
 	})
 
 	t.Run("returns all tools when empty slice provided", func(t *testing.T) {
@@ -677,7 +678,7 @@ func TestResolveTools(t *testing.T) {
 
 		tools := resolveTools(registry, []string{})
 
-		assert.Len(t, tools, 2)
+		assert.Len(t, tools, 3)
 	})
 
 	t.Run("returns specific tool when name provided", func(t *testing.T) {
