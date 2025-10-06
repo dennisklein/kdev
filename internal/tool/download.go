@@ -62,14 +62,30 @@ func (t *Tool) download(ctx context.Context, destPath, version string) error {
 	}()
 
 	hasher := sha256.New()
+
+	// Use progress reader if we have a progress writer and content length
+	var reader io.Reader = resp.Body
+
+	var progReader *ProgressReader
+
+	if t.ProgressWriter != nil && resp.ContentLength > 0 {
+		progReader = NewProgressReader(resp.Body, resp.ContentLength, t.ProgressWriter)
+		reader = progReader
+	}
+
 	writer := io.MultiWriter(out, hasher)
 
-	if _, err := io.Copy(writer, resp.Body); err != nil {
+	if _, err := io.Copy(writer, reader); err != nil {
 		if closeErr := out.Close(); closeErr != nil {
 			return closeErr
 		}
 
 		return err
+	}
+
+	// Finish progress display
+	if progReader != nil {
+		progReader.Finish()
 	}
 
 	if err := out.Close(); err != nil {

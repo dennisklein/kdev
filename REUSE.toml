@@ -45,6 +45,7 @@ path = [
   "internal/tool/kubectl_test.go",
   "internal/tool/paths.go",
   "internal/tool/paths_test.go",
+  "internal/tool/progress.go",
   "internal/tool/registry.go",
   "internal/tool/registry_test.go",
   "internal/tool/tool.go",
