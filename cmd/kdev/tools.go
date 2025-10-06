@@ -86,32 +86,25 @@ func runToolsClean(cmd *cobra.Command, args []string) error {
 	var totalReclaimed int64
 
 	for _, t := range tools {
-		if cleanOld {
+		versions, err := t.CachedVersions()
+		if err != nil {
+			return fmt.Errorf("failed to get cached versions for %s: %w", t.Name, err)
+		}
+
+		if cleanOld && len(versions) > 0 {
 			// Clean only old versions (keep most recent)
-			versions, err := t.CachedVersions()
-			if err != nil {
-				return fmt.Errorf("failed to get cached versions for %s: %w", t.Name, err)
-			}
-
-			// Skip the first version (newest), clean the rest
-			for i := 1; i < len(versions); i++ {
-				totalReclaimed += versions[i].Size
-
-				if err := t.CleanVersion(versions[i].Version); err != nil {
-					return fmt.Errorf("failed to clean %s version %s: %w", t.Name, versions[i].Version, err)
+			versionsToClean := versions[1:] // Skip the newest
+			for _, v := range versionsToClean {
+				totalReclaimed += v.Size
+				if err := t.CleanVersion(v.Version); err != nil {
+					return fmt.Errorf("failed to clean %s version %s: %w", t.Name, v.Version, err)
 				}
 			}
-		} else {
+		} else if !cleanOld {
 			// Clean all versions
-			versions, err := t.CachedVersions()
-			if err != nil {
-				return fmt.Errorf("failed to get cached versions for %s: %w", t.Name, err)
-			}
-
 			for _, v := range versions {
 				totalReclaimed += v.Size
 			}
-
 			if err := t.CleanAll(); err != nil {
 				return fmt.Errorf("failed to clean %s: %w", t.Name, err)
 			}
