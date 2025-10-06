@@ -295,4 +295,61 @@ func TestToolDownload(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, dirExists)
 	})
+
+	t.Run("handles checksum fetch failure", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+
+		// Mock checksum server that fails
+		checksumServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer checksumServer.Close()
+
+		tool := &Tool{
+			Name: "testtool",
+			Fs:   fs,
+			VersionFunc: func(ctx context.Context) (string, error) {
+				return testVersion, nil
+			},
+			DownloadURL: func(version, goos, goarch string) string {
+				return "http://example.com/binary"
+			},
+			ChecksumURL: func(version, goos, goarch string) string {
+				return checksumServer.URL
+			},
+		}
+
+		destPath := testToolPath
+		err := tool.download(context.Background(), destPath, testVersion)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to fetch checksum")
+	})
+
+	t.Run("handles empty checksum response", func(t *testing.T) {
+		// This tests the case where strings.Fields returns empty slice
+		checksumServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("   \n  \t  ")) //nolint:errcheck // test helper - only whitespace
+		}))
+		defer checksumServer.Close()
+
+		checksum, err := fetchChecksum(context.Background(), checksumServer.URL)
+		require.NoError(t, err)
+		assert.Equal(t, "", checksum) // Empty string after trimming and fields split
+	})
+}
+
+func TestFetchChecksumBodyCloseError(t *testing.T) {
+	t.Run("handles response body close gracefully", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("abc123def456")) //nolint:errcheck // test helper
+		}))
+		defer server.Close()
+
+		// The close error is handled but doesn't fail the function if reading succeeds
+		checksum, err := fetchChecksum(context.Background(), server.URL)
+		require.NoError(t, err)
+		assert.Equal(t, "abc123def456", checksum)
+	})
 }

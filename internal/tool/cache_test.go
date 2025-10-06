@@ -3,6 +3,11 @@ package tool
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -370,4 +375,176 @@ func TestGetFs(t *testing.T) {
 		_, ok := result.(*afero.MemMapFs)
 		assert.False(t, ok)
 	})
+}
+
+func TestCachedVersionsErrors(t *testing.T) {
+	t.Run("handles ReadDir error", func(t *testing.T) {
+		fs := &errorFs{
+			Fs:         afero.NewMemMapFs(),
+			readDirErr: fmt.Errorf("permission denied"),
+		}
+		home := testHome
+		t.Setenv("HOME", home)
+
+		dataDir := filepath.Join(home, ".kdev")
+		toolDir := filepath.Join(dataDir, "kdev", "kubectl")
+
+		// Create tool directory
+		err := fs.MkdirAll(toolDir, 0o755)
+		require.NoError(t, err)
+
+		tool := &Tool{
+			Name: "kubectl",
+			Fs:   fs,
+		}
+
+		_, err = tool.CachedVersions()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read tool directory")
+	})
+}
+
+func TestCleanVersionErrors(t *testing.T) {
+	t.Run("handles RemoveAll error", func(t *testing.T) {
+		fs := &errorFs{
+			Fs:           afero.NewMemMapFs(),
+			removeAllErr: fmt.Errorf("permission denied"),
+		}
+		home := testHome
+		t.Setenv("HOME", home)
+
+		dataDir := filepath.Join(home, ".kdev")
+		versionDir := filepath.Join(dataDir, "kdev", "kubectl", "v1.0.0")
+
+		// Create version directory
+		err := fs.MkdirAll(versionDir, 0o755)
+		require.NoError(t, err)
+
+		tool := &Tool{
+			Name: "kubectl",
+			Fs:   fs,
+		}
+
+		err = tool.CleanVersion("v1.0.0")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to remove version directory")
+	})
+}
+
+func TestCleanAllErrors(t *testing.T) {
+	t.Run("handles RemoveAll error", func(t *testing.T) {
+		fs := &errorFs{
+			Fs:           afero.NewMemMapFs(),
+			removeAllErr: fmt.Errorf("permission denied"),
+		}
+		home := testHome
+		t.Setenv("HOME", home)
+
+		dataDir := filepath.Join(home, ".kdev")
+		toolDir := filepath.Join(dataDir, "kdev", "kubectl")
+
+		// Create tool directory
+		err := fs.MkdirAll(toolDir, 0o755)
+		require.NoError(t, err)
+
+		tool := &Tool{
+			Name: "kubectl",
+			Fs:   fs,
+		}
+
+		err = tool.CleanAll()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to remove tool directory")
+	})
+}
+
+func TestDownloadErrors(t *testing.T) {
+	t.Run("handles Chmod error", func(t *testing.T) {
+		fs := &errorFs{
+			Fs:       afero.NewMemMapFs(),
+			chmodErr: fmt.Errorf("permission denied"),
+		}
+		home := testHome
+		t.Setenv("HOME", home)
+
+		content := []byte("binary")
+		checksum := fmt.Sprintf("%x", sha256.Sum256(content))
+
+		checksumServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(checksum)) //nolint:errcheck // test helper
+		}))
+		defer checksumServer.Close()
+
+		binaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(content) //nolint:errcheck // test helper
+		}))
+		defer binaryServer.Close()
+
+		tool := &Tool{
+			Name: "testtool",
+			Fs:   fs,
+			VersionFunc: func(ctx context.Context) (string, error) {
+				return "v1.0.0", nil
+			},
+			DownloadURL: func(version, goos, goarch string) string {
+				return binaryServer.URL
+			},
+			ChecksumURL: func(version, goos, goarch string) string {
+				return checksumServer.URL
+			},
+		}
+
+		err := tool.Download(context.Background())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to make executable")
+	})
+}
+
+// errorFs is a test filesystem that can return errors for specific operations.
+type errorFs struct {
+	afero.Fs
+	removeAllErr error
+	chmodErr     error
+	readDirErr   error
+}
+
+func (e *errorFs) RemoveAll(path string) error {
+	if e.removeAllErr != nil {
+		return e.removeAllErr
+	}
+
+	return e.Fs.RemoveAll(path)
+}
+
+func (e *errorFs) Chmod(name string, mode os.FileMode) error {
+	if e.chmodErr != nil {
+		return e.chmodErr
+	}
+
+	return e.Fs.Chmod(name, mode)
+}
+
+func (e *errorFs) Open(name string) (afero.File, error) {
+	f, err := e.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &errorFile{File: f, readDirErr: e.readDirErr}, nil
+}
+
+// errorFile wraps afero.File to return errors for ReadDir.
+type errorFile struct {
+	afero.File
+	readDirErr error
+}
+
+func (e *errorFile) Readdir(count int) ([]os.FileInfo, error) {
+	if e.readDirErr != nil {
+		return nil, e.readDirErr
+	}
+
+	return e.File.Readdir(count)
 }

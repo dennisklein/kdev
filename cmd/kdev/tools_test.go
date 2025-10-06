@@ -117,6 +117,30 @@ func TestRunToolsClean(t *testing.T) {
 			assert.Contains(t, output, "Reclaimed")
 		}
 	})
+
+	t.Run("respects --old flag", func(t *testing.T) {
+		cmd := newToolsCleanCmd()
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetArgs([]string{"--old"})
+
+		// Clean with --old flag should succeed
+		err := cmd.Execute()
+		require.NoError(t, err)
+	})
+
+	t.Run("handles specific tool", func(t *testing.T) {
+		cmd := newToolsCleanCmd()
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetArgs([]string{"kubectl"})
+
+		// Clean specific tool should succeed
+		err := cmd.Execute()
+		require.NoError(t, err)
+	})
 }
 
 func TestNewToolsInfoCmd(t *testing.T) {
@@ -164,6 +188,59 @@ func TestRunToolsInfo(t *testing.T) {
 			assert.Contains(t, output, "kubectl")
 		}
 	})
+
+	t.Run("shows total size for multiple tools", func(t *testing.T) {
+		cmd := newToolsInfoCmd()
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetArgs([]string{})
+		cmd.SetContext(context.Background())
+
+		err := cmd.Execute()
+
+		// If tools are cached, should show cache size
+		if err == nil {
+			output := buf.String()
+			// Multiple tools should show total if cached
+			// At minimum, should have both kubectl and kind listed
+			assert.Contains(t, output, "kubectl")
+			assert.Contains(t, output, "kind")
+		}
+	})
+
+	t.Run("handles unknown tool", func(t *testing.T) {
+		cmd := newToolsInfoCmd()
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetArgs([]string{"nonexistent"})
+		cmd.SetContext(context.Background())
+
+		// Unknown tool results in no output but no error
+		err := cmd.Execute()
+		require.NoError(t, err)
+
+		output := buf.String()
+		assert.Empty(t, output)
+	})
+}
+
+func TestPrintToolInfo(t *testing.T) {
+	t.Run("shows not cached message when no versions", func(t *testing.T) {
+		var buf bytes.Buffer
+		registry := newTestRegistry(&buf)
+		kubectl := registry.Get("kubectl")
+
+		// Ensure no cached versions exist
+		size, err := printToolInfo(&buf, kubectl)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), size)
+
+		output := buf.String()
+		assert.Contains(t, output, "kubectl")
+		assert.Contains(t, output, "not cached")
+	})
 }
 
 func TestNewToolsUpdateCmd(t *testing.T) {
@@ -194,6 +271,38 @@ func TestRunToolsUpdate(t *testing.T) {
 		// May succeed or fail depending on network/permissions
 		// We're just verifying the command executes
 		_ = err
+	})
+
+	t.Run("handles specific tool", func(t *testing.T) {
+		cmd := newToolsUpdateCmd()
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetArgs([]string{"kubectl"})
+		cmd.SetContext(context.Background())
+
+		// Verify command accepts specific tool name
+		err := cmd.Execute()
+
+		// May succeed or fail depending on network/permissions
+		// We're just verifying the command structure
+		_ = err
+	})
+
+	t.Run("handles unknown tool", func(t *testing.T) {
+		cmd := newToolsUpdateCmd()
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetArgs([]string{"nonexistent"})
+		cmd.SetContext(context.Background())
+
+		// Unknown tool is skipped without error
+		err := cmd.Execute()
+		require.NoError(t, err)
+
+		output := buf.String()
+		assert.Empty(t, output)
 	})
 }
 

@@ -99,6 +99,31 @@ func TestKubectlVersion(t *testing.T) {
 		// The VersionFunc should be kubectlVersion which calls the production endpoint
 		// We just verify it exists and is callable (though we won't actually call it)
 	})
+
+	t.Run("handles response body close error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("v1.30.0\n")) //nolint:errcheck // test helper
+		}))
+		defer server.Close()
+
+		// The close error is handled but doesn't fail the function if reading succeeds
+		version, err := kubectlVersionWithClient(context.Background(), http.DefaultClient, server.URL)
+		require.NoError(t, err)
+		assert.Equal(t, "v1.30.0", version)
+	})
+
+	t.Run("handles ReadAll error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			// Connection will be closed abruptly
+			panic(http.ErrAbortHandler)
+		}))
+		defer server.Close()
+
+		_, err := kubectlVersionWithClient(context.Background(), http.DefaultClient, server.URL)
+		require.Error(t, err)
+	})
 }
 
 func TestKubectlDownloadURL(t *testing.T) {

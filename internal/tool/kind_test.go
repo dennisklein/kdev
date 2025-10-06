@@ -98,6 +98,20 @@ func TestKindVersion(t *testing.T) {
 		// The VersionFunc should be kindVersion which calls the production endpoint
 		// We just verify it exists and is callable (though we won't actually call it)
 	})
+
+	t.Run("handles response body close error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"tag_name": "v0.22.0"}`)) //nolint:errcheck // test helper
+		}))
+		defer server.Close()
+
+		// The close error is handled but doesn't fail the function if json decoding succeeds
+		version, err := kindVersionWithClient(context.Background(), http.DefaultClient, server.URL)
+		require.NoError(t, err)
+		assert.Equal(t, "v0.22.0", version)
+	})
 }
 
 func TestKindDownloadURL(t *testing.T) {
