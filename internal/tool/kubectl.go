@@ -10,13 +10,7 @@ import (
 
 // NewKubectl creates a Tool configured for kubectl.
 func NewKubectl(progress io.Writer) *Tool {
-	return &Tool{
-		Name:           "kubectl",
-		ProgressWriter: progress,
-		VersionFunc:    kubectlVersion,
-		DownloadURL:    kubectlDownloadURL,
-		ChecksumURL:    kubectlChecksumURL,
-	}
+	return NewToolFromConfig(kubectlConfig(), progress)
 }
 
 func kubectlVersion(ctx context.Context) (version string, err error) {

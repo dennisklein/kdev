@@ -10,13 +10,7 @@ import (
 
 // NewKind creates a Tool configured for kind (Kubernetes in Docker).
 func NewKind(progress io.Writer) *Tool {
-	return &Tool{
-		Name:           "kind",
-		ProgressWriter: progress,
-		VersionFunc:    kindVersion,
-		DownloadURL:    kindDownloadURL,
-		ChecksumURL:    kindChecksumURL,
-	}
+	return NewToolFromConfig(kindConfig(), progress)
 }
 
 func kindVersion(ctx context.Context) (version string, err error) {
