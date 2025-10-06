@@ -94,14 +94,22 @@ RUN --mount=type=cache,target=/root/.cache/go-build,id=kdev/root/.cache/go-build
 # runs unit-tests with race detector
 FROM base AS unit-tests-race
 WORKDIR /src
+# Create non-root user for testing (needed for permission-based error tests)
+RUN addgroup -g 1000 testuser && adduser -D -u 1000 -G testuser testuser
+RUN chown -R testuser:testuser /src /go
 ARG TESTPKGS
-RUN --mount=type=cache,target=/root/.cache/go-build,id=kdev/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp CGO_ENABLED=1 go test -v -race ${TESTPKGS}
+USER testuser
+RUN --mount=type=cache,target=/home/testuser/.cache/go-build,id=kdev/testuser/.cache/go-build,uid=1000,gid=1000 --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp,uid=1000,gid=1000 CGO_ENABLED=1 go test -v -race ${TESTPKGS}
 
 # runs unit-tests
 FROM base AS unit-tests-run
 WORKDIR /src
+# Create non-root user for testing (needed for permission-based error tests)
+RUN addgroup -g 1000 testuser && adduser -D -u 1000 -G testuser testuser
+RUN chown -R testuser:testuser /src /go
 ARG TESTPKGS
-RUN --mount=type=cache,target=/root/.cache/go-build,id=kdev/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp go test -v -covermode=atomic -coverprofile=coverage.txt -coverpkg=${TESTPKGS} ${TESTPKGS}
+USER testuser
+RUN --mount=type=cache,target=/home/testuser/.cache/go-build,id=kdev/testuser/.cache/go-build,uid=1000,gid=1000 --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp,uid=1000,gid=1000 go test -v -covermode=atomic -coverprofile=coverage.txt -coverpkg=${TESTPKGS} ${TESTPKGS}
 
 FROM scratch AS kdev-linux-amd64
 COPY --from=kdev-linux-amd64-build /kdev-linux-amd64 /kdev-linux-amd64
@@ -114,7 +122,11 @@ COPY --from=lint-golangci-lint-fmt-run /src .
 FROM base AS e2e-tests
 WORKDIR /src
 COPY ./test ./test
-RUN --mount=type=cache,target=/root/.cache/go-build,id=kdev/root/.cache/go-build --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp go test -v -tags=e2e ./test/e2e/...
+# Create non-root user for testing (needed for permission-based error tests)
+RUN addgroup -g 1000 testuser && adduser -D -u 1000 -G testuser testuser
+RUN chown -R testuser:testuser /src /go
+USER testuser
+RUN --mount=type=cache,target=/home/testuser/.cache/go-build,id=kdev/testuser/.cache/go-build,uid=1000,gid=1000 --mount=type=cache,target=/go/pkg,id=kdev/go/pkg --mount=type=cache,target=/tmp,id=kdev/tmp,uid=1000,gid=1000 go test -v -tags=e2e ./test/e2e/...
 
 FROM scratch AS unit-tests
 COPY --from=unit-tests-run /src/coverage.txt /coverage-unit-tests.txt
