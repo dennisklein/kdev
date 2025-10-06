@@ -20,6 +20,7 @@ SPDX-License-Identifier = "MPL-2.0"
 
 [[annotations]]
 path = [
+  "cmd/kdev/common.go",
   "cmd/kdev/kind.go",
   "cmd/kdev/kind_test.go",
   "cmd/kdev/kubectl.go",
@@ -33,8 +34,11 @@ path = [
   "go.sum",
   "internal/tool/cache.go",
   "internal/tool/cache_test.go",
+  "internal/tool/config.go",
   "internal/tool/download.go",
   "internal/tool/download_test.go",
+  "internal/tool/fs_helper.go",
+  "internal/tool/http.go",
   "internal/tool/kind.go",
   "internal/tool/kind_test.go",
   "internal/tool/kubectl.go",
@@ -45,6 +49,8 @@ path = [
   "internal/tool/registry_test.go",
   "internal/tool/tool.go",
   "internal/tool/tool_test.go",
+  "internal/util/format.go",
+  "internal/util/format_test.go",
   "test/e2e/exec_test.go",
   "test/e2e/mock/tool.go",
 ]

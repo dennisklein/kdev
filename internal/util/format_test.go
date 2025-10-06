@@ -1,8 +1,13 @@
-package util
+package util_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dennisklein/kdev/internal/util"
+)
 
 func TestFormatBytes(t *testing.T) {
+	//nolint:govet // fieldalignment: test readability over optimization
 	tests := []struct {
 		name  string
 		bytes int64
@@ -42,7 +47,7 @@ func TestFormatBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatBytes(tt.bytes)
+			got := util.FormatBytes(tt.bytes)
 			if got != tt.want {
 				t.Errorf("FormatBytes(%d) = %v, want %v", tt.bytes, got, tt.want)
 			}

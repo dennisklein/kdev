@@ -20,6 +20,7 @@ func DataDir(fs afero.Fs) (string, error) {
 	}
 
 	helper := NewFSHelper(fs)
+
 	xdgDefault := filepath.Join(homeDir, ".local", "share")
 	if helper.IsDir(xdgDefault) {
 		return xdgDefault, nil
@@ -27,4 +28,3 @@ func DataDir(fs afero.Fs) (string, error) {
 
 	return filepath.Join(homeDir, ".kdev"), nil
 }
-

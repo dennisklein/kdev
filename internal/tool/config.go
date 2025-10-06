@@ -6,6 +6,8 @@ import (
 )
 
 // Config defines the configuration for creating a Tool.
+//
+//nolint:govet // fieldalignment: readability preferred over optimization
 type Config struct {
 	Name        string
 	VersionFunc func(context.Context) (string, error)

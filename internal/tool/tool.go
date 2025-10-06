@@ -90,6 +90,7 @@ func (t *Tool) getFSHelper() *FSHelper {
 	if t.fsHelper == nil {
 		t.fsHelper = NewFSHelper(t.getFs())
 	}
+
 	return t.fsHelper
 }
 
@@ -97,6 +98,7 @@ func (t *Tool) getFSHelper() *FSHelper {
 func (t *Tool) writeProgress(format string, args ...interface{}) error {
 	if t.ProgressWriter != nil {
 		_, err := fmt.Fprintf(t.ProgressWriter, format, args...)
+
 		return err
 	}
 

@@ -702,7 +702,6 @@ func TestResolveTools(t *testing.T) {
 	})
 }
 
-
 // newTestRegistry creates a registry for testing.
 func newTestRegistry(buf *bytes.Buffer) *tool.Registry {
 	return tool.NewRegistry(buf)

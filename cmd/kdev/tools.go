@@ -106,6 +106,7 @@ func runToolsClean(cmd *cobra.Command, args []string) error {
 			for _, v := range versions {
 				totalReclaimed += v.Size
 			}
+
 			if err := t.CleanAll(); err != nil {
 				return fmt.Errorf("failed to clean %s: %w", t.Name, err)
 			}
