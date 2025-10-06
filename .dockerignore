@@ -1,0 +1,11 @@
+# THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
+#
+# Generated on 2025-10-06T12:04:34Z by kres bc281a9.
+
+*
+!cmd
+!go.mod
+!go.sum
+!.golangci.yml
+!.markdownlint.json
+!hack/govulncheck.sh

@@ -1,0 +1,29 @@
+version = 1
+
+[[annotations]]
+path = [
+  ".dockerignore",
+  ".gitignore",
+  ".golangci.yml",
+  ".markdownlint.json",
+  ".github/renovate.json",
+  ".github/workflows/ci.yaml",
+  "Dockerfile",
+  "Makefile",
+  "hack/govulncheck.sh",
+]
+SPDX-FileCopyrightText = [
+  "2025 Sidero Labs, Inc. <https://www.siderolabs.com/>",
+  "2025 GSI Helmholtzzentrum für Schwerionenforschung GmbH <https://www.gsi.de/en/>",
+]
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = [
+  "cmd/kdev/main.go",
+  "cmd/kdev/version.go",
+  "go.mod",
+  "go.sum",
+]
+SPDX-FileCopyrightText = "2025 GSI Helmholtzzentrum für Schwerionenforschung GmbH <https://www.gsi.de/en/>"
+SPDX-License-Identifier = "MPL-2.0"

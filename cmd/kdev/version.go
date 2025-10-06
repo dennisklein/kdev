@@ -15,15 +15,19 @@ func newVersionCmd() *cobra.Command {
 		Long:  ``,
 		RunE:  version,
 	}
+
 	return cmd
 }
 
 func version(cmd *cobra.Command, args []string) error {
 	cmd.SetOut(os.Stdout)
+
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return errors.New("could not read embedded build info ('go build -buildvcs=true')")
 	}
+
 	cmd.Println(info.Main.Version)
+
 	return nil
 }
