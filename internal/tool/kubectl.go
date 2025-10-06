@@ -25,28 +25,8 @@ func kubectlVersion(ctx context.Context) (version string, err error) {
 
 // kubectlVersionWithClient fetches kubectl version from the specified URL using the given client.
 // This function is exported for testing purposes.
-func kubectlVersionWithClient(ctx context.Context, client *http.Client, url string) (version string, err error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	data, err := io.ReadAll(resp.Body)
+func kubectlVersionWithClient(ctx context.Context, client *http.Client, url string) (string, error) {
+	data, err := fetchHTTPContent(ctx, client, url)
 	if err != nil {
 		return "", err
 	}

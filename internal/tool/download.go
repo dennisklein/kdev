@@ -82,28 +82,8 @@ func (t *Tool) download(ctx context.Context, destPath, version string) error {
 	return fs.Rename(tmpFile, destPath)
 }
 
-func fetchChecksum(ctx context.Context, url string) (checksum string, err error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	data, err := io.ReadAll(resp.Body)
+func fetchChecksum(ctx context.Context, url string) (string, error) {
+	data, err := fetchHTTPContent(ctx, http.DefaultClient, url)
 	if err != nil {
 		return "", err
 	}
