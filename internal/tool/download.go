@@ -15,6 +15,11 @@ import (
 	"github.com/spf13/afero"
 )
 
+const (
+	// tarGzExtension is the file extension for tar.gz archive files.
+	tarGzExtension = ".tar.gz"
+)
+
 func (t *Tool) download(ctx context.Context, destPath, version string) error {
 	fs := t.getFs()
 
@@ -102,7 +107,7 @@ func (t *Tool) download(ctx context.Context, destPath, version string) error {
 	}
 
 	// If the downloaded file is a tar.gz, extract it
-	if strings.HasSuffix(url, ".tar.gz") {
+	if strings.HasSuffix(url, tarGzExtension) {
 		if err := extractTarGzFile(fs, tmpFile, destPath, t.Name); err != nil {
 			return fmt.Errorf("failed to extract archive: %w", err)
 		}
