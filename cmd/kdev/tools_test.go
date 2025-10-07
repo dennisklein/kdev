@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dennisklein/kdev/internal/testutil"
 	"github.com/dennisklein/kdev/internal/tool"
 	"github.com/dennisklein/kdev/internal/util"
 )
@@ -257,7 +258,7 @@ func TestRunToolsClean(t *testing.T) { //nolint:maintidx // test function comple
 		cmd := newToolsCleanCmd()
 
 		// Use a writer that returns an error immediately
-		errWriter := &errorWriter{}
+		errWriter := testutil.NewErrorWriter(fmt.Errorf("write error"))
 		cmd.SetOut(errWriter)
 		cmd.SetArgs([]string{"kubectl"})
 
@@ -502,7 +503,7 @@ func TestRunToolsInfo(t *testing.T) {
 
 		cmd := newToolsInfoCmd()
 
-		errWriter := &errorWriter{}
+		errWriter := testutil.NewErrorWriter(fmt.Errorf("write error"))
 		cmd.SetOut(errWriter)
 		cmd.SetArgs([]string{})
 		cmd.SetContext(context.Background())
@@ -540,7 +541,7 @@ func TestPrintToolInfo(t *testing.T) {
 		kubectl := registry.Get("kubectl")
 
 		// Use error writer
-		errWriter := &errorWriter{}
+		errWriter := testutil.NewErrorWriter(fmt.Errorf("write error"))
 
 		_, err := printToolInfo(errWriter, kubectl)
 		require.Error(t, err)
@@ -618,7 +619,7 @@ func TestRunToolsUpdate(t *testing.T) {
 
 		cmd := newToolsUpdateCmd()
 
-		errWriter := &errorWriter{}
+		errWriter := testutil.NewErrorWriter(fmt.Errorf("write error"))
 		cmd.SetOut(errWriter)
 		cmd.SetArgs([]string{"kubectl"})
 		cmd.SetContext(context.Background())
@@ -757,11 +758,4 @@ func requireFileNotExists(t *testing.T, path string) {
 
 	_, err := os.Stat(path)
 	require.True(t, os.IsNotExist(err), "file should not exist: %s", path)
-}
-
-// errorWriter is a writer that always returns an error.
-type errorWriter struct{}
-
-func (w *errorWriter) Write(p []byte) (n int, err error) {
-	return 0, fmt.Errorf("write error")
 }
