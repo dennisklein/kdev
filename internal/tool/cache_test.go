@@ -483,7 +483,7 @@ func TestDownload(t *testing.T) {
 		t.Setenv("HOME", home)
 
 		dataDir := filepath.Join(home, ".kdev")
-		binPath := filepath.Join(dataDir, "kdev", "testtool", "v1.0.0", "testtool")
+		binPath := filepath.Join(dataDir, "kdev", "testtool", testVersion, "testtool")
 
 		// Create directory and file to simulate download
 		err := fs.MkdirAll(filepath.Dir(binPath), 0o755)
@@ -510,7 +510,7 @@ func TestDownload(t *testing.T) {
 		t.Setenv("HOME", home)
 
 		dataDir := filepath.Join(home, ".kdev")
-		binPath := filepath.Join(dataDir, "kdev", "testtool", "v1.0.0", "testtool")
+		binPath := filepath.Join(dataDir, "kdev", "testtool", testVersion, "testtool")
 
 		// Pre-create the binary
 		err := fs.MkdirAll(filepath.Dir(binPath), 0o755)
@@ -523,7 +523,7 @@ func TestDownload(t *testing.T) {
 			Name: "testtool",
 			Fs:   fs,
 			VersionFunc: func(ctx context.Context) (string, error) {
-				return "v1.0.0", nil //nolint:goconst // test version string
+				return testVersion, nil //nolint:goconst // test version string
 			},
 		}
 
@@ -545,12 +545,12 @@ func TestDownload(t *testing.T) {
 			Name: "testtool",
 			Fs:   fs,
 			VersionFunc: func(ctx context.Context) (string, error) {
-				return "v1.0.0", nil //nolint:goconst // test version string
+				return testVersion, nil //nolint:goconst // test version string
 			},
 		}
 
 		// Pre-create to avoid actual download
-		binPath := filepath.Join(customDataDir, "kdev", "testtool", "v1.0.0", "testtool")
+		binPath := filepath.Join(customDataDir, "kdev", "testtool", testVersion, "testtool")
 		err := fs.MkdirAll(filepath.Dir(binPath), 0o755)
 		require.NoError(t, err)
 
@@ -624,7 +624,7 @@ func TestCleanVersionErrors(t *testing.T) {
 		t.Setenv("HOME", home)
 
 		dataDir := filepath.Join(home, ".kdev")
-		versionDir := filepath.Join(dataDir, "kdev", "kubectl", "v1.0.0")
+		versionDir := filepath.Join(dataDir, "kdev", "kubectl", testVersion)
 
 		// Create version directory
 		err := fs.MkdirAll(versionDir, 0o755)
@@ -635,7 +635,7 @@ func TestCleanVersionErrors(t *testing.T) {
 			Fs:   fs,
 		}
 
-		err = tool.CleanVersion("v1.0.0")
+		err = tool.CleanVersion(testVersion)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to remove version directory")
 	})
@@ -696,7 +696,7 @@ func TestDownloadErrors(t *testing.T) {
 			Name: "testtool",
 			Fs:   fs,
 			VersionFunc: func(ctx context.Context) (string, error) {
-				return "v1.0.0", nil //nolint:goconst // test version string
+				return testVersion, nil //nolint:goconst // test version string
 			},
 			DownloadURL: func(version, goos, goarch string) string {
 				return binaryServer.URL
@@ -724,7 +724,7 @@ func TestDownloadErrors(t *testing.T) {
 			Fs:             fs,
 			ProgressWriter: errWriter,
 			VersionFunc: func(ctx context.Context) (string, error) {
-				return "v1.0.0", nil //nolint:goconst // test version string
+				return testVersion, nil //nolint:goconst // test version string
 			},
 			DownloadURL: func(version, goos, goarch string) string {
 				return "http://example.com/binary" //nolint:goconst // test URL
@@ -770,7 +770,7 @@ func TestDownloadErrors(t *testing.T) {
 			Fs:             fs,
 			ProgressWriter: errWriter,
 			VersionFunc: func(ctx context.Context) (string, error) {
-				return "v1.0.0", nil //nolint:goconst // test version string
+				return testVersion, nil //nolint:goconst // test version string
 			},
 			DownloadURL: func(version, goos, goarch string) string {
 				return binaryServer.URL

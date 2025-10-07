@@ -17,10 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testToolPath = "/cache/testtool/v1.0.0/testtool"
-	testVersion  = "v1.0.0"
-)
+const testToolPath = "/cache/testtool/v1.0.0/testtool"
 
 func TestFetchChecksum(t *testing.T) {
 	t.Run("fetches checksum successfully", func(t *testing.T) {
