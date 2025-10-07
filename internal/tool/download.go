@@ -134,19 +134,31 @@ func fetchChecksum(ctx context.Context, url string) (string, error) {
 
 // extractTarGzFile extracts a single binary from a tar.gz file.
 // It looks for a file matching the tool name in the archive root.
-func extractTarGzFile(fs afero.Fs, archivePath, destPath, toolName string) error {
+func extractTarGzFile(fs afero.Fs, archivePath, destPath, toolName string) (err error) {
 	// Open the archive
 	archiveFile, err := fs.Open(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to open archive: %w", err)
 	}
-	defer archiveFile.Close() //nolint:errcheck // close on read-only file
+
+	defer func() {
+		closeErr := archiveFile.Close()
+		if err == nil && closeErr != nil {
+			err = fmt.Errorf("failed to close archive file: %w", closeErr)
+		}
+	}()
 
 	gzr, err := gzip.NewReader(archiveFile)
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer gzr.Close() //nolint:errcheck // close on reader
+
+	defer func() {
+		closeErr := gzr.Close()
+		if err == nil && closeErr != nil {
+			err = fmt.Errorf("failed to close gzip reader: %w", closeErr)
+		}
+	}()
 
 	tr := tar.NewReader(gzr)
 
