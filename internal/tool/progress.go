@@ -6,6 +6,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/dennisklein/kdev/internal/util"
 )
 
 // ProgressReader wraps an io.Reader and reports progress.
@@ -70,8 +72,8 @@ func (pr *ProgressReader) render(percent float64) {
 	bar := pr.progress.ViewAs(percent)
 
 	// Add percentage and size info
-	downloaded := formatBytes(pr.current)
-	total := formatBytes(pr.total)
+	downloaded := util.FormatBytes(pr.current)
+	total := util.FormatBytes(pr.total)
 
 	style := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("green"))
@@ -87,22 +89,6 @@ func (pr *ProgressReader) Finish() {
 		pr.render(1.0)
 		_, _ = fmt.Fprintln(pr.writer) //nolint:errcheck // best effort progress display
 	}
-}
-
-// formatBytes formats bytes in human-readable format.
-func formatBytes(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-
-	return fmt.Sprintf("%.1f %ciB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
 // ProgressWriter wraps progress messages for non-interactive output.

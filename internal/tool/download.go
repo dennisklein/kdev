@@ -161,7 +161,7 @@ func extractTarGzFile(fs afero.Fs, archivePath, destPath, toolName string) error
 		}
 
 		// Look for the binary matching the tool name
-		if header.Name == toolName || header.Name == "./"+toolName {
+		if filepath.Base(header.Name) == toolName {
 			out, err := fs.Create(destPath)
 			if err != nil {
 				return fmt.Errorf("failed to create output file: %w", err)
