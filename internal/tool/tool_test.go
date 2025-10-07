@@ -14,11 +14,14 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/dennisklein/kdev/internal/testutil"
 )
 
 const (
 	kubectlTestVersion = "v1.30.0"
 	testUser           = "/home/testuser"
+	testVersion        = "v1.0.0"
 )
 
 func TestToolGetFs(t *testing.T) {
@@ -489,7 +492,7 @@ func TestPrepareExec(t *testing.T) { //nolint:maintidx // test function complexi
 		t.Setenv("HOME", home)
 
 		// Create a writer that always errors
-		errWriter := &errorWriter{err: fmt.Errorf("write error")}
+		errWriter := testutil.NewErrorWriter(fmt.Errorf("write error"))
 
 		tool := &Tool{
 			Name:           "kubectl",
@@ -532,10 +535,7 @@ func TestPrepareExec(t *testing.T) { //nolint:maintidx // test function complexi
 		defer binaryServer.Close()
 
 		// Writer that fails on second write
-		errWriter := &errorWriter{
-			failAfter: 1,
-			err:       fmt.Errorf("write error"),
-		}
+		errWriter := testutil.NewErrorWriterAfter(1, fmt.Errorf("write error"))
 
 		tool := &Tool{
 			Name:           "kubectl",
@@ -556,23 +556,4 @@ func TestPrepareExec(t *testing.T) { //nolint:maintidx // test function complexi
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to write progress")
 	})
-}
-
-// errorWriter is a test writer that returns errors.
-//
-//nolint:govet // fieldalignment not critical for test helper
-type errorWriter struct {
-	failAfter int // Number of writes before failing (0 = always fail)
-	writes    int
-	err       error
-}
-
-func (e *errorWriter) Write(p []byte) (n int, err error) {
-	e.writes++
-
-	if e.failAfter == 0 || e.writes > e.failAfter {
-		return 0, e.err
-	}
-
-	return len(p), nil
 }
