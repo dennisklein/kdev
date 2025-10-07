@@ -11,14 +11,12 @@ import (
 )
 
 // ProgressReader wraps an io.Reader and reports progress.
-//
-//nolint:govet // fieldalignment: readability preferred over minor memory optimization
 type ProgressReader struct {
 	reader   io.Reader
+	writer   io.Writer
+	progress progress.Model
 	total    int64
 	current  int64
-	progress progress.Model
-	writer   io.Writer
 	lastPct  int
 }
 
