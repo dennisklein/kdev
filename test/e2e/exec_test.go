@@ -63,13 +63,19 @@ func buildMockTool() error {
 }
 
 func kdevBinary() string {
-	wd, _ := os.Getwd()
+	wd, err := os.Getwd()
+	if err != nil {
+		panic("failed to get working directory: " + err.Error())
+	}
 
 	return filepath.Join(wd, "kdev-e2e")
 }
 
 func mockToolBinary() string {
-	wd, _ := os.Getwd()
+	wd, err := os.Getwd()
+	if err != nil {
+		panic("failed to get working directory: " + err.Error())
+	}
 
 	return filepath.Join(wd, "mock-tool")
 }
