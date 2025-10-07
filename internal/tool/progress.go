@@ -10,6 +10,11 @@ import (
 	"github.com/dennisklein/kdev/internal/util"
 )
 
+const (
+	// progressUpdateInterval is the percentage interval at which progress updates are displayed.
+	progressUpdateInterval = 5
+)
+
 // ProgressReader wraps an io.Reader and reports progress.
 type ProgressReader struct {
 	reader   io.Reader
@@ -47,8 +52,8 @@ func (pr *ProgressReader) Read(p []byte) (int, error) {
 		percent := float64(pr.current) / float64(pr.total)
 		currentPct := int(percent * 100)
 
-		// Only update every 5% to avoid too many updates
-		if currentPct != pr.lastPct && (currentPct%5 == 0 || currentPct == 100 || pr.lastPct == -1) {
+		// Only update at specified percentage intervals to avoid too many updates
+		if currentPct != pr.lastPct && (currentPct%progressUpdateInterval == 0 || currentPct == 100 || pr.lastPct == -1) {
 			pr.lastPct = currentPct
 			pr.render(percent)
 		}
